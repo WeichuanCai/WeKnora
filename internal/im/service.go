@@ -323,6 +323,13 @@ type channelState struct {
 // The second return value is an optional cleanup function (e.g., for stopping websocket connections).
 type AdapterFactory func(ctx context.Context, channel *IMChannel, msgHandler func(ctx context.Context, msg *IncomingMessage) error) (Adapter, context.CancelFunc, error)
 
+func detachMessageContext(ctx context.Context) context.Context {
+	if ctx == nil {
+		return context.Background()
+	}
+	return context.WithoutCancel(ctx)
+}
+
 // inflightEntry tracks a running QA request, keyed by userKey in the inflight map.
 type inflightEntry struct {
 	cancel             context.CancelFunc
@@ -701,7 +708,7 @@ func (s *Service) StartChannel(channel *IMChannel) error {
 func (s *Service) startChannelInternal(channel *IMChannel, factory AdapterFactory) error {
 	// Build the message handler that delegates to HandleMessage with this channel's config
 	msgHandler := func(msgCtx context.Context, msg *IncomingMessage) error {
-		return s.HandleMessage(msgCtx, msg, channel.ID)
+		return s.HandleMessage(detachMessageContext(msgCtx), msg, channel.ID)
 	}
 
 	ctx := context.Background()
